@@ -163,6 +163,7 @@ Feature: Reading an interval from a string
         | unreadable day-time   | garbage    | INTERVAL DAY TO SECOND |
         | out of range          | 1 25:00:00 | INTERVAL DAY TO SECOND |
         | unreadable year-month | garbage    | INTERVAL YEAR TO MONTH |
+        | the wrong shape       | 5 seconds  | INTERVAL DAY TO SECOND |
 
   Rule: The qualified SQL literal reads the same ranges
 
@@ -181,3 +182,45 @@ Feature: Reading an interval from a string
         | a three-digit field  | 1 002:03:04           | DAY TO SECOND |
         | ten fraction digits  | 1 02:03:04.1234567890 | DAY TO SECOND |
         | months past a year   | 0-13                  | YEAR TO MONTH |
+
+  Rule: The shape of a qualified cast is the shape of its target
+
+    Scenario Outline: Accepted: <type> reads <value>
+      When query
+        """
+        SELECT CAST('<value>' AS INTERVAL <type>) = INTERVAL '<value>' <type> AS result
+        """
+      Then query result
+        | result |
+        | true   |
+
+      Examples:
+        | type             | value |
+        | DAY              | 5     |
+        | DAY TO HOUR      | 1 2   |
+        | DAY TO MINUTE    | 1 2:3 |
+        | HOUR             | 100   |
+        | HOUR TO MINUTE   | 2:3   |
+        | MINUTE           | 99    |
+        | MINUTE TO SECOND | 3:4.5 |
+        | SECOND           | 4.5   |
+        | YEAR             | 5     |
+        | MONTH            | -5    |
+
+    Scenario Outline: Refused: <case>
+      When query
+        """
+        SELECT CAST('<value>' AS INTERVAL <type>) AS result
+        """
+      Then query error (?i)invalid.*interval
+
+      Examples:
+        | case                        | value     | type             |
+        | not the whole shape         | 5         | DAY TO SECOND    |
+        | not a shorter shape         | 1 2:3     | DAY TO SECOND    |
+        | another target's shape      | 2:3:4     | DAY TO SECOND    |
+        | a day shape for hours       | 1 2:3:4   | HOUR TO SECOND   |
+        | multi-unit for a qualified  | 5 seconds | DAY TO SECOND    |
+        | multi-unit year-month       | 2 years   | YEAR TO MONTH    |
+        | a bare number is not a pair | 5         | YEAR TO MONTH    |
+        | an hour-minute shape        | 2:3       | MINUTE           |

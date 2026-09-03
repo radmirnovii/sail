@@ -356,6 +356,10 @@ message SparkTimestampUdf {
 message SparkIntervalUdf {
   string name = 1;
   bool is_try = 2;
+  // The target qualifier: `spec::YearMonthIntervalField` or
+  // `spec::DayTimeIntervalField` values, per the UDF the name selects.
+  int32 start_field = 3;
+  int32 end_field = 4;
 }
 
 message SparkDateUdf {

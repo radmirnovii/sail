@@ -12,9 +12,10 @@ use datafusion_common::types::logical_string;
 use datafusion_common::{Result, ScalarValue, exec_datafusion_err, exec_err};
 use datafusion_expr::{ColumnarValue, ScalarFunctionArgs, ScalarUDFImpl, Signature, Volatility};
 use datafusion_expr_common::signature::{Coercion, TypeSignatureClass};
+use sail_common::spec;
 use sail_common_datafusion::utils::items::ItemTaker;
 use sail_sql_analyzer::literal::interval::{IntervalValue, parse_calendar_interval_string};
-use sail_sql_analyzer::parser::parse_interval_cast;
+use sail_sql_analyzer::parser::{parse_day_time_interval_cast, parse_year_month_interval_cast};
 
 use crate::functions_utils::StrMemo;
 
@@ -55,23 +56,27 @@ where
 }
 
 macro_rules! define_interval_udf {
-    ($udf:ident, $name:expr_2021, $return_type:expr_2021, $primitive_type:ty, $func:expr_2021, $scalar:expr_2021 $(,)?) => {
+    (
+        $udf:ident,
+        $name:expr_2021,
+        $return_type:expr_2021,
+        $primitive_type:ty,
+        $scalar:expr_2021,
+        { $($field:ident: $ftype:ty),* $(,)? },
+        $make_parse:expr_2021 $(,)?
+    ) => {
         #[derive(Debug, PartialEq, Eq, Hash)]
         pub struct $udf {
             signature: Signature,
             is_try: bool,
-        }
-
-        impl Default for $udf {
-            fn default() -> Self {
-                Self::new(false)
-            }
+            $($field: $ftype,)*
         }
 
         impl $udf {
-            pub fn new(is_try: bool) -> Self {
+            pub fn new(is_try: bool $(, $field: $ftype)*) -> Self {
                 Self {
                     is_try,
+                    $($field,)*
                     signature: Signature::coercible(
                         vec![Coercion::new_exact(TypeSignatureClass::Native(
                             logical_string(),
@@ -89,6 +94,12 @@ macro_rules! define_interval_udf {
             pub fn is_try(&self) -> bool {
                 self.is_try
             }
+
+            $(
+                pub fn $field(&self) -> $ftype {
+                    self.$field
+                }
+            )*
         }
 
         impl ScalarUDFImpl for $udf {
@@ -108,19 +119,20 @@ macro_rules! define_interval_udf {
                 let ScalarFunctionArgs { args, .. } = args;
                 let arg = args.one()?;
                 let is_try = self.is_try;
+                let parse = ($make_parse)(self);
                 match arg {
                     ColumnarValue::Array(array) => {
                         let array: PrimitiveArray<$primitive_type> = match array.data_type() {
                             DataType::Utf8 => {
-                                parse_memoized(as_string_array(&array)?.iter(), $func, is_try)?
+                                parse_memoized(as_string_array(&array)?.iter(), &parse, is_try)?
                             }
                             DataType::LargeUtf8 => parse_memoized(
                                 as_large_string_array(&array)?.iter(),
-                                $func,
+                                &parse,
                                 is_try,
                             )?,
                             DataType::Utf8View => {
-                                parse_memoized(as_string_view_array(&array)?.iter(), $func, is_try)?
+                                parse_memoized(as_string_view_array(&array)?.iter(), &parse, is_try)?
                             }
                             _ => return exec_err!("expected string array for intervals"),
                         };
@@ -128,7 +140,7 @@ macro_rules! define_interval_udf {
                     }
                     ColumnarValue::Scalar(scalar) => {
                         let value = match scalar.try_as_str() {
-                            Some(x) => match x.map(|x| $func(x)) {
+                            Some(x) => match x.map(|x| parse(x)) {
                                 Some(Err(_)) if is_try => None,
                                 other => other.transpose()?,
                             },
@@ -147,8 +159,15 @@ define_interval_udf!(
     "spark_year_month_interval",
     DataType::Interval(IntervalUnit::YearMonth),
     IntervalYearMonthType,
-    string_to_year_month_interval,
     ScalarValue::IntervalYearMonth,
+    {
+        start: spec::YearMonthIntervalField,
+        end: spec::YearMonthIntervalField,
+    },
+    |udf: &SparkYearMonthInterval| {
+        let (start, end) = (udf.start, udf.end);
+        move |s: &str| string_to_year_month_interval(s, start, end)
+    },
 );
 
 define_interval_udf!(
@@ -156,8 +175,15 @@ define_interval_udf!(
     "spark_day_time_interval",
     DataType::Duration(TimeUnit::Microsecond),
     DurationMicrosecondType,
-    string_to_day_time_interval,
     ScalarValue::DurationMicrosecond,
+    {
+        start: spec::DayTimeIntervalField,
+        end: spec::DayTimeIntervalField,
+    },
+    |udf: &SparkDayTimeInterval| {
+        let (start, end) = (udf.start, udf.end);
+        move |s: &str| string_to_day_time_interval(s, start, end)
+    },
 );
 
 define_interval_udf!(
@@ -165,8 +191,9 @@ define_interval_udf!(
     "spark_calendar_interval",
     DataType::Interval(IntervalUnit::MonthDayNano),
     IntervalMonthDayNanoType,
-    string_to_calendar_interval,
     ScalarValue::IntervalMonthDayNano,
+    {},
+    |_: &SparkCalendarInterval| string_to_calendar_interval,
 );
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -240,17 +267,17 @@ impl ScalarUDFImpl for SparkDayTimeIntervalToCalendarInterval {
     }
 }
 
-// TODO: support alternative form of interval strings
-//   In Spark, interval strings can be specified in two forms.
-//   For example, the `INTERVAL HOUR` type can have the following string representations.
-//   1. `[+|-]h`
-//   2. `INTERVAL [+|-]'[+|-]h' HOUR`
-//   The first form cannot be parsed since the start and end field information is lost in
-//   Arrow types. Types such as `INTERVAL DAY` and `INTERVAL HOUR` has the same physical type
-//   in Arrow, and we cannot distinguish `[+|-]d` from `[+|-]h`.
+// The target qualifier travels with the UDF, so a string is read in exactly
+// the shape of its target even though Arrow keeps one physical type per
+// family; the declared type still erases the fields.
 
-fn string_to_year_month_interval(value: &str) -> Result<i32> {
-    let interval = parse_interval_cast(value).map_err(|e| exec_datafusion_err!("{e}"))?;
+fn string_to_year_month_interval(
+    value: &str,
+    start: spec::YearMonthIntervalField,
+    end: spec::YearMonthIntervalField,
+) -> Result<i32> {
+    let interval = parse_year_month_interval_cast(value, start, end)
+        .map_err(|e| exec_datafusion_err!("{e}"))?;
     match interval {
         IntervalValue::YearMonth { months } => Ok(months),
         IntervalValue::Microsecond { .. } | IntervalValue::MonthDayNanosecond { .. } => {
@@ -259,8 +286,13 @@ fn string_to_year_month_interval(value: &str) -> Result<i32> {
     }
 }
 
-fn string_to_day_time_interval(value: &str) -> Result<i64> {
-    let interval = parse_interval_cast(value).map_err(|e| exec_datafusion_err!("{e}"))?;
+fn string_to_day_time_interval(
+    value: &str,
+    start: spec::DayTimeIntervalField,
+    end: spec::DayTimeIntervalField,
+) -> Result<i64> {
+    let interval =
+        parse_day_time_interval_cast(value, start, end).map_err(|e| exec_datafusion_err!("{e}"))?;
     match interval {
         IntervalValue::Microsecond { microseconds } => Ok(microseconds),
         IntervalValue::YearMonth { .. } | IntervalValue::MonthDayNanosecond { .. } => {
@@ -363,11 +395,19 @@ mod tests {
     }
 
     #[test]
-    fn string_parsers_map_interval_kinds() -> Result<()> {
-        assert_eq!(string_to_year_month_interval("2 years")?, 24);
-        assert!(string_to_year_month_interval("5 minutes").is_err());
-        assert_eq!(string_to_day_time_interval("5 minutes")?, 300_000_000);
-        assert!(string_to_day_time_interval("1 month").is_err());
+    fn string_parsers_read_exactly_the_target_shape() -> Result<()> {
+        use spec::{DayTimeIntervalField as Dt, YearMonthIntervalField as Ym};
+        assert_eq!(
+            string_to_year_month_interval("2-0", Ym::Year, Ym::Month)?,
+            24
+        );
+        // The multi-unit language belongs to the calendar type only.
+        assert!(string_to_year_month_interval("2 years", Ym::Year, Ym::Month).is_err());
+        assert_eq!(
+            string_to_day_time_interval("5", Dt::Minute, Dt::Minute)?,
+            300_000_000
+        );
+        assert!(string_to_day_time_interval("5 minutes", Dt::Day, Dt::Second).is_err());
         assert_eq!(
             string_to_calendar_interval("1 month 2 days")?,
             IntervalMonthDayNano::new(1, 2, 0)

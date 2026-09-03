@@ -88,6 +88,7 @@ use datafusion_spark::function::url::url_decode::UrlDecode;
 use datafusion_spark::function::url::url_encode::UrlEncode;
 use prost::Message;
 use sail_catalog_system::physical_plan::SystemTableExec;
+use sail_common::spec;
 use sail_common_datafusion::array::record_batch::{read_record_batches, write_record_batches};
 use sail_common_datafusion::catalog::{
     CatalogPartitionField, LakehouseExecutionContext, PartitionTransform,
@@ -3085,13 +3086,30 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
                 let udf = SparkTimestamp::try_new(timezone.map(Arc::from), ansi_mode, is_try)?;
                 return Ok(Arc::new(ScalarUDF::from(udf)));
             }
-            UdfKind::SparkInterval(r#gen::SparkIntervalUdf { name, is_try }) => {
+            UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
+                name,
+                is_try,
+                start_field,
+                end_field,
+            }) => {
                 return match name.as_str() {
-                    "spark_year_month_interval" => Ok(Arc::new(ScalarUDF::from(
-                        SparkYearMonthInterval::new(is_try),
-                    ))),
+                    "spark_year_month_interval" => {
+                        let start = spec::YearMonthIntervalField::try_from(start_field)
+                            .map_err(|e| plan_datafusion_err!("{e}"))?;
+                        let end = spec::YearMonthIntervalField::try_from(end_field)
+                            .map_err(|e| plan_datafusion_err!("{e}"))?;
+                        Ok(Arc::new(ScalarUDF::from(SparkYearMonthInterval::new(
+                            is_try, start, end,
+                        ))))
+                    }
                     "spark_day_time_interval" => {
-                        Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(is_try))))
+                        let start = spec::DayTimeIntervalField::try_from(start_field)
+                            .map_err(|e| plan_datafusion_err!("{e}"))?;
+                        let end = spec::DayTimeIntervalField::try_from(end_field)
+                            .map_err(|e| plan_datafusion_err!("{e}"))?;
+                        Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(
+                            is_try, start, end,
+                        ))))
                     }
                     "spark_calendar_interval" => Ok(Arc::new(ScalarUDF::from(
                         SparkCalendarInterval::new(is_try),
@@ -3338,12 +3356,21 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
             "spark_encode" | "encode" => Ok(Arc::new(ScalarUDF::from(SparkEncode::new()))),
             "spark_elt" | "elt" => Ok(Arc::new(ScalarUDF::from(SparkElt::new()))),
             "spark_decode" | "decode" => Ok(Arc::new(ScalarUDF::from(SparkDecode::new()))),
-            "spark_year_month_interval" => Ok(Arc::new(ScalarUDF::from(
-                SparkYearMonthInterval::new(false),
-            ))),
-            "spark_day_time_interval" => {
-                Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(false))))
+            // Name-only plans predate both the try flag and the qualifier
+            // fields; their drivers were qualifier-blind, so the full range is
+            // the one behaviour they meant.
+            "spark_year_month_interval" => {
+                Ok(Arc::new(ScalarUDF::from(SparkYearMonthInterval::new(
+                    false,
+                    spec::YearMonthIntervalField::Year,
+                    spec::YearMonthIntervalField::Month,
+                ))))
             }
+            "spark_day_time_interval" => Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(
+                false,
+                spec::DayTimeIntervalField::Day,
+                spec::DayTimeIntervalField::Second,
+            )))),
             "spark_day_time_interval_to_calendar_interval" => Ok(Arc::new(ScalarUDF::from(
                 SparkDayTimeIntervalToCalendarInterval::new(),
             ))),
@@ -3634,16 +3661,22 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
             UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
                 name: "spark_year_month_interval".to_string(),
                 is_try: func.is_try(),
+                start_field: func.start() as i32,
+                end_field: func.end() as i32,
             })
         } else if let Some(func) = node.inner().downcast_ref::<SparkDayTimeInterval>() {
             UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
                 name: "spark_day_time_interval".to_string(),
                 is_try: func.is_try(),
+                start_field: func.start() as i32,
+                end_field: func.end() as i32,
             })
         } else if let Some(func) = node.inner().downcast_ref::<SparkCalendarInterval>() {
             UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
                 name: "spark_calendar_interval".to_string(),
                 is_try: func.is_try(),
+                start_field: 0,
+                end_field: 0,
             })
         } else if let Some(func) = node.inner().downcast_ref::<SparkDate>() {
             let is_try = func.is_try();
@@ -7459,13 +7492,25 @@ mod tests {
 
     #[test]
     fn test_round_trip_spark_interval_preserves_options() -> Result<()> {
-        let decoded = round_trip_udf(ScalarUDF::from(SparkYearMonthInterval::new(true)))?;
+        let decoded = round_trip_udf(ScalarUDF::from(SparkYearMonthInterval::new(
+            true,
+            spec::YearMonthIntervalField::Month,
+            spec::YearMonthIntervalField::Month,
+        )))?;
         let decoded = downcast_udf::<SparkYearMonthInterval>(&decoded, "SparkYearMonthInterval")?;
         assert!(decoded.is_try());
+        assert_eq!(decoded.start(), spec::YearMonthIntervalField::Month);
+        assert_eq!(decoded.end(), spec::YearMonthIntervalField::Month);
 
-        let decoded = round_trip_udf(ScalarUDF::from(SparkDayTimeInterval::new(true)))?;
+        let decoded = round_trip_udf(ScalarUDF::from(SparkDayTimeInterval::new(
+            true,
+            spec::DayTimeIntervalField::Hour,
+            spec::DayTimeIntervalField::Second,
+        )))?;
         let decoded = downcast_udf::<SparkDayTimeInterval>(&decoded, "SparkDayTimeInterval")?;
         assert!(decoded.is_try());
+        assert_eq!(decoded.start(), spec::DayTimeIntervalField::Hour);
+        assert_eq!(decoded.end(), spec::DayTimeIntervalField::Second);
 
         let decoded = round_trip_udf(ScalarUDF::from(SparkCalendarInterval::new(true)))?;
         let decoded = downcast_udf::<SparkCalendarInterval>(&decoded, "SparkCalendarInterval")?;

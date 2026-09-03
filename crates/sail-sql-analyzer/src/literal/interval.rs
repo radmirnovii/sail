@@ -19,44 +19,48 @@ fn create_regex(regex: Result<Regex, regex::Error>) -> Regex {
     regex.unwrap()
 }
 
-// Spark's patterns give the leading field any width and the fields after it
-// one or two digits; a fraction is one to nine digits and requires its dot.
-// Field ranges (hours 0-23 under a day, minutes and seconds 0-59, months 0-11
-// under a year) are checked in code, since they are about values, not widths.
+// Spark's patterns: leading field any width, later fields one or two digits,
+// a fraction is 1-9 digits with its dot, exactly one space between day and
+// time; field ranges are about values, so they are checked in code.
 lazy_static! {
-    static ref INTERVAL_YEAR_REGEX: Regex =
-        create_regex(Regex::new(r"^\s*(?P<sign>[+-]?)(?P<year>\d+)\s*$"));
-    static ref INTERVAL_YEAR_TO_MONTH_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<year>\d+)-(?P<month>\d+)\s*$"
+    static ref INTERVAL_YEAR_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<year>\d+)[\x00-\x20]*$"
     ));
-    static ref INTERVAL_MONTH_REGEX: Regex =
-        create_regex(Regex::new(r"^\s*(?P<sign>[+-]?)(?P<month>\d+)\s*$"));
-    static ref INTERVAL_DAY_REGEX: Regex =
-        create_regex(Regex::new(r"^\s*(?P<sign>[+-]?)(?P<day>\d+)\s*$"));
+    static ref INTERVAL_YEAR_TO_MONTH_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<year>\d+)-(?P<month>\d+)[\x00-\x20]*$"
+    ));
+    static ref INTERVAL_MONTH_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<month>\d+)[\x00-\x20]*$"
+    ));
+    static ref INTERVAL_DAY_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<day>\d+)[\x00-\x20]*$"
+    ));
     static ref INTERVAL_DAY_TO_HOUR_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<day>\d+)\s+(?P<hour>\d{1,2})\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<day>\d+) (?P<hour>\d{1,2})[\x00-\x20]*$"
     ));
     static ref INTERVAL_DAY_TO_MINUTE_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<day>\d+)\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2})\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<day>\d+) (?P<hour>\d{1,2}):(?P<minute>\d{1,2})[\x00-\x20]*$"
     ));
     static ref INTERVAL_DAY_TO_SECOND_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<day>\d+)\s+(?P<hour>\d{1,2}):(?P<minute>\d{1,2}):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<day>\d+) (?P<hour>\d{1,2}):(?P<minute>\d{1,2}):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?[\x00-\x20]*$"
     ));
-    static ref INTERVAL_HOUR_REGEX: Regex =
-        create_regex(Regex::new(r"^\s*(?P<sign>[+-]?)(?P<hour>\d+)\s*$"));
+    static ref INTERVAL_HOUR_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<hour>\d+)[\x00-\x20]*$"
+    ));
     static ref INTERVAL_HOUR_TO_MINUTE_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<hour>\d+):(?P<minute>\d{1,2})\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<hour>\d+):(?P<minute>\d{1,2})[\x00-\x20]*$"
     ));
     static ref INTERVAL_HOUR_TO_SECOND_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<hour>\d+):(?P<minute>\d{1,2}):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<hour>\d+):(?P<minute>\d{1,2}):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?[\x00-\x20]*$"
     ));
-    static ref INTERVAL_MINUTE_REGEX: Regex =
-        create_regex(Regex::new(r"^\s*(?P<sign>[+-]?)(?P<minute>\d+)\s*$"));
+    static ref INTERVAL_MINUTE_REGEX: Regex = create_regex(Regex::new(
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<minute>\d+)[\x00-\x20]*$"
+    ));
     static ref INTERVAL_MINUTE_TO_SECOND_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<minute>\d+):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<minute>\d+):(?P<second>\d{1,2})([.](?P<fraction>\d{1,9}))?[\x00-\x20]*$"
     ));
     static ref INTERVAL_SECOND_REGEX: Regex = create_regex(Regex::new(
-        r"^\s*(?P<sign>[+-]?)(?P<second>\d+)([.](?P<fraction>\d{1,9}))?\s*$"
+        r"^[\x00-\x20]*(?P<sign>[+-]?)(?P<second>\d+)([.](?P<fraction>\d{1,9}))?[\x00-\x20]*$"
     ));
 }
 
@@ -180,11 +184,16 @@ impl FromStr for Signed<DecimalSecond> {
 fn parse_interval_year_month_string(
     s: &str,
     negated: bool,
+    rendering_negates: bool,
     interval_regex: &Regex,
 ) -> SqlResult<IntervalValue> {
     let error = || SqlError::invalid(format!("interval: {s}"));
     let captures = interval_regex.captures(s).ok_or_else(error)?;
-    let string_negates = captures.name("sign").map(|s| s.as_str()) == Some("-");
+    // Signs written in the string narrow with the value, so `'-178956970-8'`
+    // reaches `i32::MIN`; `negated` negates the finished value, as Spark
+    // applies it, and cannot.
+    let string_negates =
+        (captures.name("sign").map(|s| s.as_str()) == Some("-")) != rendering_negates;
     let years: i64 = extract_match(&captures, "year", error)?.unwrap_or(0);
     let months: i64 = extract_match(&captures, "month", error)?.unwrap_or(0);
     // Months are a field of the year when one is written, so they are 0-11.
@@ -208,11 +217,14 @@ fn parse_interval_year_month_string(
 fn parse_interval_day_time_string(
     s: &str,
     negated: bool,
+    rendering_negates: bool,
     interval_regex: &Regex,
 ) -> SqlResult<IntervalValue> {
     let error = || SqlError::invalid(format!("interval: {s}"));
     let captures = interval_regex.captures(s).ok_or_else(error)?;
-    let string_negates = captures.name("sign").map(|s| s.as_str()) == Some("-");
+    // Signs combine as in [parse_interval_year_month_string].
+    let string_negates =
+        (captures.name("sign").map(|s| s.as_str()) == Some("-")) != rendering_negates;
     let days: i64 = extract_match(&captures, "day", error)?.unwrap_or(0);
     let hours: i64 = extract_match(&captures, "hour", error)?.unwrap_or(0);
     let minutes: i64 = extract_match(&captures, "minute", error)?.unwrap_or(0);
@@ -330,43 +342,43 @@ fn from_ast_standard_interval(
     let value = signed.into_inner();
     match kind {
         StandardIntervalKind::Year => {
-            parse_interval_year_month_string(&value, negated, &INTERVAL_YEAR_REGEX)
+            parse_interval_year_month_string(&value, negated, false, &INTERVAL_YEAR_REGEX)
         }
         StandardIntervalKind::YearToMonth => {
-            parse_interval_year_month_string(&value, negated, &INTERVAL_YEAR_TO_MONTH_REGEX)
+            parse_interval_year_month_string(&value, negated, false, &INTERVAL_YEAR_TO_MONTH_REGEX)
         }
         StandardIntervalKind::Month => {
-            parse_interval_year_month_string(&value, negated, &INTERVAL_MONTH_REGEX)
+            parse_interval_year_month_string(&value, negated, false, &INTERVAL_MONTH_REGEX)
         }
         StandardIntervalKind::Day => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_DAY_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_DAY_REGEX)
         }
         StandardIntervalKind::DayToHour => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_DAY_TO_HOUR_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_DAY_TO_HOUR_REGEX)
         }
         StandardIntervalKind::DayToMinute => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_DAY_TO_MINUTE_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_DAY_TO_MINUTE_REGEX)
         }
         StandardIntervalKind::DayToSecond => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_DAY_TO_SECOND_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_DAY_TO_SECOND_REGEX)
         }
         StandardIntervalKind::Hour => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_HOUR_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_HOUR_REGEX)
         }
         StandardIntervalKind::HourToMinute => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_HOUR_TO_MINUTE_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_HOUR_TO_MINUTE_REGEX)
         }
         StandardIntervalKind::HourToSecond => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_HOUR_TO_SECOND_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_HOUR_TO_SECOND_REGEX)
         }
         StandardIntervalKind::Minute => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_MINUTE_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_MINUTE_REGEX)
         }
         StandardIntervalKind::MinuteToSecond => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_MINUTE_TO_SECOND_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_MINUTE_TO_SECOND_REGEX)
         }
         StandardIntervalKind::Second => {
-            parse_interval_day_time_string(&value, negated, &INTERVAL_SECOND_REGEX)
+            parse_interval_day_time_string(&value, negated, false, &INTERVAL_SECOND_REGEX)
         }
     }
 }
@@ -492,33 +504,76 @@ pub(crate) fn parse_unqualified_interval_string(
     s: &str,
     negated: bool,
 ) -> SqlResult<IntervalValue> {
-    // The language of Spark's `stringToInterval`, which reads the unqualified
-    // literal and the window gap: multi-unit terms only. The ANSI shapes
-    // belong to the qualified casts — `SELECT INTERVAL '1 02:03:04'` is an
-    // error in Spark — and are read by [parse_interval_cast_string].
+    // Spark's `stringToInterval`: multi-unit terms only. The ANSI shapes
+    // belong to the qualified cast entries below, as in Spark.
     parse_unqualified_interval_string_fast(s, negated)
         .ok_or_else(|| SqlError::invalid(format!("interval string: {s:?}")))
 }
 
-/// Reads a string cast to a qualified interval type. Spark reads the ANSI
-/// shapes there (`castStringToDTInterval` / `castStringToYMInterval`); the
-/// multi-unit language is also accepted, looser than Spark, because the target
-/// qualifier that would refuse it does not reach this far (see the TODO in
-/// `spark_interval.rs`).
-pub(crate) fn parse_interval_cast_string(s: &str, negated: bool) -> SqlResult<IntervalValue> {
-    if let Some(value) = parse_unqualified_interval_string_fast(s, negated) {
-        return Ok(value);
-    }
-    if let Some(value) = parse_ansi_interval_string_fast(s, negated) {
-        return Ok(value);
-    }
-    Err(SqlError::invalid(format!("interval string: {s:?}")))
+/// Spark's `castStringToYMInterval`: exactly the shape of the target
+/// qualifier, or its own rendering with the qualifier spelled the same.
+pub(crate) fn parse_year_month_interval_cast_string(
+    s: &str,
+    negated: bool,
+    start: spec::YearMonthIntervalField,
+    end: spec::YearMonthIntervalField,
+) -> SqlResult<IntervalValue> {
+    use spec::YearMonthIntervalField::*;
+    let error = || SqlError::invalid(format!("interval string: {s:?}"));
+    let s = s.trim_matches(|c: char| c <= '\u{20}');
+    let (rendering_negates, value) = match strip_interval_rendering(s) {
+        Some((negates, value, RenderedQualifier::YearMonth(a, b))) if (a, b) == (start, end) => {
+            (negates, value)
+        }
+        Some(_) => return Err(error()),
+        None => (false, s),
+    };
+    let interval_regex: &Regex = match (start, end) {
+        (Year, Year) => &INTERVAL_YEAR_REGEX,
+        (Year, Month) => &INTERVAL_YEAR_TO_MONTH_REGEX,
+        (Month, Month) => &INTERVAL_MONTH_REGEX,
+        (Month, Year) => return Err(error()),
+    };
+    parse_interval_year_month_string(value, negated, rendering_negates, interval_regex)
+        .map_err(|_| error())
 }
 
-/// A calendar interval with Spark `stringToInterval` bucketing: the unit the
-/// user wrote decides the bucket (year/month → `months`, week/day → `days`,
-/// sub-day units → `microseconds`); nothing is rebucketed across the day
-/// boundary, so a `'1 day'` gap stays calendar and `'25 hours'` stays absolute.
+/// Spark's `castStringToDTInterval`; see [parse_year_month_interval_cast_string].
+pub(crate) fn parse_day_time_interval_cast_string(
+    s: &str,
+    negated: bool,
+    start: spec::DayTimeIntervalField,
+    end: spec::DayTimeIntervalField,
+) -> SqlResult<IntervalValue> {
+    use spec::DayTimeIntervalField::*;
+    let error = || SqlError::invalid(format!("interval string: {s:?}"));
+    let s = s.trim_matches(|c: char| c <= '\u{20}');
+    let (rendering_negates, value) = match strip_interval_rendering(s) {
+        Some((negates, value, RenderedQualifier::DayTime(a, b))) if (a, b) == (start, end) => {
+            (negates, value)
+        }
+        Some(_) => return Err(error()),
+        None => (false, s),
+    };
+    let interval_regex: &Regex = match (start, end) {
+        (Day, Day) => &INTERVAL_DAY_REGEX,
+        (Day, Hour) => &INTERVAL_DAY_TO_HOUR_REGEX,
+        (Day, Minute) => &INTERVAL_DAY_TO_MINUTE_REGEX,
+        (Day, Second) => &INTERVAL_DAY_TO_SECOND_REGEX,
+        (Hour, Hour) => &INTERVAL_HOUR_REGEX,
+        (Hour, Minute) => &INTERVAL_HOUR_TO_MINUTE_REGEX,
+        (Hour, Second) => &INTERVAL_HOUR_TO_SECOND_REGEX,
+        (Minute, Minute) => &INTERVAL_MINUTE_REGEX,
+        (Minute, Second) => &INTERVAL_MINUTE_TO_SECOND_REGEX,
+        (Second, Second) => &INTERVAL_SECOND_REGEX,
+        _ => return Err(error()),
+    };
+    parse_interval_day_time_string(value, negated, rendering_negates, interval_regex)
+        .map_err(|_| error())
+}
+
+/// Spark `stringToInterval` bucketing: the unit written decides the bucket,
+/// and nothing is rebucketed across the day boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CalendarInterval {
     pub months: i32,
@@ -547,104 +602,40 @@ pub fn parse_calendar_interval_string(s: &str) -> SqlResult<CalendarInterval> {
         .ok_or_else(|| SqlError::invalid(format!("interval string: {s:?}")))
 }
 
-/// Scans the ANSI forms `[+|-]d h:m:s[.f]`, `[+|-]h:m:s[.f]` and `[+|-]y-m`.
-///
-/// Spark prints these for the qualified interval types and accepts them when a
-/// string is cast to one; the multi-unit scanner declines them because none of
-/// their words is a unit. Bounds follow Spark: hours 0-23, minutes and seconds
-/// 0-59, months 0-11, and exactly one space between the day and the time. A
-/// leading sign applies to the whole value, not just the first component.
-fn parse_ansi_interval_string_fast(s: &str, negated: bool) -> Option<IntervalValue> {
-    // Spark trims every byte up to the space at both ends (`trimAll`), so a
-    // non-breaking space is content rather than padding and is refused.
-    let s = s.trim_matches(|c: char| c <= '\u{20}');
-    let (rendering_negates, s, family) = match strip_interval_rendering(s) {
-        Some((rendering_negates, value, family)) => (rendering_negates, value, Some(family)),
-        None => (false, s, None),
-    };
-    let (signed, rest) = match s.as_bytes().first()? {
-        b'-' => (true, &s[1..]),
-        b'+' => (false, &s[1..]),
-        _ => (false, s),
-    };
-    // Both written signs — before the quote of a rendering and inside the
-    // value — are part of the string and narrow with it; the caller's
-    // negation applies to the finished value and cannot reach the minimum.
-    let negative = signed != rendering_negates;
-    if rest.contains(':') {
-        if family == Some(AnsiFamily::YearMonth) {
-            return None;
-        }
-        let (days, time) = match rest.split_once(' ') {
-            Some((days, time)) => (Some(parse_ansi_component(days)?), time),
-            None => (None, rest),
-        };
-        // Hours are a field of the day only when a day was written; on its own
-        // `100:00:00` is a hundred hours, which is what Spark reads for
-        // `HOUR TO SECOND`. Which of the two Spark would accept depends on the
-        // target qualifier, and Arrow has already lost it by here — every
-        // day-time interval is one `Duration(Microsecond)` — so the shape of
-        // the string decides, and both shapes are read rather than refused.
-        let time = ansi_time_microseconds(time, days.is_some())?;
-        let days = days.unwrap_or(0).checked_mul(86_400_000_000)?;
-        // Accumulate with the sign rather than negating at the end: the
-        // smallest interval Spark prints, `-106751991 04:00:54.775808`, has a
-        // magnitude one past `i64::MAX`.
-        let mut microseconds = if negative {
-            0i64.checked_sub(days)?.checked_sub(time)?
-        } else {
-            days.checked_add(time)?
-        };
-        if negated {
-            microseconds = microseconds.checked_neg()?;
-        }
-        Some(IntervalValue::Microsecond { microseconds })
+/// The qualifier a rendering names, mapped onto the spec field pairs.
+#[derive(Clone, Copy)]
+enum RenderedQualifier {
+    YearMonth(spec::YearMonthIntervalField, spec::YearMonthIntervalField),
+    DayTime(spec::DayTimeIntervalField, spec::DayTimeIntervalField),
+}
+
+fn parse_qualifier_word(word: &str) -> Option<RenderedQualifier> {
+    use spec::{DayTimeIntervalField as Dt, YearMonthIntervalField as Ym};
+    if word.eq_ignore_ascii_case("year") {
+        Some(RenderedQualifier::YearMonth(Ym::Year, Ym::Year))
+    } else if word.eq_ignore_ascii_case("month") {
+        Some(RenderedQualifier::YearMonth(Ym::Month, Ym::Month))
+    } else if word.eq_ignore_ascii_case("day") {
+        Some(RenderedQualifier::DayTime(Dt::Day, Dt::Day))
+    } else if word.eq_ignore_ascii_case("hour") {
+        Some(RenderedQualifier::DayTime(Dt::Hour, Dt::Hour))
+    } else if word.eq_ignore_ascii_case("minute") {
+        Some(RenderedQualifier::DayTime(Dt::Minute, Dt::Minute))
+    } else if word.eq_ignore_ascii_case("second") {
+        Some(RenderedQualifier::DayTime(Dt::Second, Dt::Second))
     } else {
-        if family == Some(AnsiFamily::DayTime) {
-            return None;
-        }
-        let (years, months) = rest.split_once('-')?;
-        let months = parse_ansi_component(months)?;
-        if months > 11 {
-            return None;
-        }
-        let total = parse_ansi_component(years)?
-            .checked_mul(12)?
-            .checked_add(months)?;
-        // Negate in `i64` and narrow after, so `-178956970-8` — the smallest
-        // year-month interval Spark prints — is reachable.
-        let total = if negative {
-            0i64.checked_sub(total)?
-        } else {
-            total
-        };
-        let mut months = i32::try_from(total).ok()?;
-        if negated {
-            months = months.checked_neg()?;
-        }
-        Some(IntervalValue::YearMonth { months })
+        None
     }
 }
 
-/// The two families an ANSI qualifier can name.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum AnsiFamily {
-    YearMonth,
-    DayTime,
-}
-
-/// Unwraps `INTERVAL [+|-]'<value>' <unit> [TO <unit>]`, which is what Spark
-/// prints for a qualified interval and reads back when the qualifier names the
-/// target type. The qualifier's family has to match the shape of the value,
-/// but not the target type, which does not reach this far: Arrow keeps every
-/// day-time interval as one `Duration`, so `INTERVAL '12:30:45' HOUR TO
-/// SECOND` is read for a `DAY TO SECOND` target where Spark would refuse it.
-fn strip_interval_rendering(s: &str) -> Option<(bool, &str, AnsiFamily)> {
+/// Unwraps `INTERVAL [+|-]'<value>' <unit> [TO <unit>]`, what Spark prints
+/// for a qualified interval; the caller reads the value only when the
+/// qualifier is spelled the same as the target, as Spark does.
+fn strip_interval_rendering(s: &str) -> Option<(bool, &str, RenderedQualifier)> {
     s.get(..8)
         .filter(|head| head.eq_ignore_ascii_case("interval"))?;
-    // Spark's pattern is `interval\s+`, so the keyword does not glue to the
-    // value, and a sign sits directly before the quote, negating the value:
-    // `INTERVAL -'-1-2' YEAR TO MONTH` is a year and two months.
+    // Spark's pattern is `interval\s+`: the keyword does not glue to the
+    // value, and a sign before the quote negates the value.
     let rest = &s[8..];
     let trimmed = rest.trim_start_matches(|c: char| c.is_ascii_whitespace());
     if trimmed.len() == rest.len() {
@@ -660,84 +651,28 @@ fn strip_interval_rendering(s: &str) -> Option<(bool, &str, AnsiFamily)> {
     if !tail.starts_with(|c: char| c.is_ascii_whitespace()) {
         return None;
     }
-    // The qualifier is a unit, or `unit TO unit` within one family; anything
-    // else — a bare `to`, a plural, a unit of the other family — is not one.
-    let family = |word: &str| -> Option<AnsiFamily> {
-        if ["year", "month"]
-            .iter()
-            .any(|w| word.eq_ignore_ascii_case(w))
-        {
-            Some(AnsiFamily::YearMonth)
-        } else if ["day", "hour", "minute", "second"]
-            .iter()
-            .any(|w| word.eq_ignore_ascii_case(w))
-        {
-            Some(AnsiFamily::DayTime)
-        } else {
-            None
-        }
-    };
+    // One unit, or `unit TO unit` within one family; anything else is not one.
     let mut words = tail.split_ascii_whitespace();
-    let start = family(words.next()?)?;
+    let mut qualifier = parse_qualifier_word(words.next()?)?;
     if let Some(second_word) = words.next() {
         if !second_word.eq_ignore_ascii_case("to") {
             return None;
         }
-        if family(words.next()?)? != start || words.next().is_some() {
+        let end = parse_qualifier_word(words.next()?)?;
+        if words.next().is_some() {
             return None;
         }
+        qualifier = match (qualifier, end) {
+            (RenderedQualifier::YearMonth(start, _), RenderedQualifier::YearMonth(_, end)) => {
+                RenderedQualifier::YearMonth(start, end)
+            }
+            (RenderedQualifier::DayTime(start, _), RenderedQualifier::DayTime(_, end)) => {
+                RenderedQualifier::DayTime(start, end)
+            }
+            _ => return None,
+        };
     }
-    Some((negated, value, start))
-}
-
-/// Digits only, so a sign inside a component or an empty one is declined.
-fn parse_ansi_component(s: &str) -> Option<i64> {
-    if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    s.parse().ok()
-}
-
-/// `h:m:s[.f]` in microseconds. Minutes and seconds are always fields of the
-/// unit above; hours are only when a day was written before them.
-fn ansi_time_microseconds(time: &str, hours_are_a_field: bool) -> Option<i64> {
-    let mut parts = time.split(':');
-    let hours_part = parts.next()?;
-    let minutes_part = parts.next()?;
-    let seconds_part = parts.next()?;
-    if parts.next().is_some() {
-        return None;
-    }
-    let (seconds_digits, fraction) = match seconds_part.split_once('.') {
-        Some((seconds, fraction)) => (seconds, Some(fraction)),
-        None => (seconds_part, None),
-    };
-    // The leading field takes any number of digits in Spark's patterns; every
-    // field under it takes one or two. Hours lead only without a day.
-    if (hours_are_a_field && hours_part.len() > 2)
-        || minutes_part.len() > 2
-        || seconds_digits.len() > 2
-    {
-        return None;
-    }
-    let hours = parse_ansi_component(hours_part)?;
-    let minutes = parse_ansi_component(minutes_part)?;
-    let seconds = parse_ansi_component(seconds_digits)?;
-    if (hours_are_a_field && hours > 23) || minutes > 59 || seconds > 59 {
-        return None;
-    }
-    // Spark's pattern takes one to nine fraction digits and then truncates to
-    // six; a longer one does not match at all.
-    if fraction
-        .is_some_and(|f| f.is_empty() || f.len() > 9 || !f.bytes().all(|b| b.is_ascii_digit()))
-    {
-        return None;
-    }
-    hours
-        .checked_mul(3_600_000_000)?
-        .checked_add(minutes.checked_mul(60_000_000)?)?
-        .checked_add(seconds.checked_mul(1_000_000)?)?
-        .checked_add(fraction_microseconds(fraction)?)
+    Some((negated, value, qualifier))
 }
 
 /// A scanned interval term: (negated, integer digits, fraction digits, unit).
@@ -1062,133 +997,201 @@ mod tests {
     #![expect(clippy::expect_used, clippy::panic)]
     use super::*;
 
-    /// Values and rules taken from JVM Spark 4.x. The plain accept/refuse
-    /// matrix lives in the feature file and runs against both engines; what
-    /// stays here is what a scenario cannot carry — exact microsecond values,
-    /// bytes no Gherkin table holds, and the internal entry itself.
+    /// Verdicts from JVM Spark 4.x. The accept/refuse matrix lives in the
+    /// feature file; here stay exact microseconds, the reachable minimums,
+    /// bytes no Gherkin table holds, and the internal entries.
     #[test]
-    fn test_ansi_interval_forms() {
+    fn test_qualified_cast_shapes() {
+        use spec::{DayTimeIntervalField as Dt, YearMonthIntervalField as Ym};
         const HOUR: i64 = 3_600_000_000;
         const MINUTE: i64 = 60_000_000;
         const SECOND: i64 = 1_000_000;
         const DAY: i64 = 24 * HOUR;
 
-        let micros = |s: &str| match parse_ansi_interval_string_fast(s, false) {
-            Some(IntervalValue::Microsecond { microseconds }) => Some(microseconds),
+        let micros = |s: &str, start: Dt, end: Dt| match parse_day_time_interval_cast_string(
+            s, false, start, end,
+        ) {
+            Ok(IntervalValue::Microsecond { microseconds }) => Some(microseconds),
             _ => None,
         };
-        let months = |s: &str| match parse_ansi_interval_string_fast(s, false) {
-            Some(IntervalValue::YearMonth { months }) => Some(months),
+        let months = |s: &str, start: Ym, end: Ym| match parse_year_month_interval_cast_string(
+            s, false, start, end,
+        ) {
+            Ok(IntervalValue::YearMonth { months }) => Some(months),
             _ => None,
         };
+        let dts = |s: &str| micros(s, Dt::Day, Dt::Second);
+        let hts = |s: &str| micros(s, Dt::Hour, Dt::Second);
+        let ym = |s: &str| months(s, Ym::Year, Ym::Month);
 
-        let d1_2_3_4 = DAY + 2 * HOUR + 3 * MINUTE + 4 * SECOND;
-        let h2_3_4 = 2 * HOUR + 3 * MINUTE + 4 * SECOND;
-        for (input, expected) in [
-            ("1 02:03:04", d1_2_3_4),
-            // A leading sign covers the whole value, not just the day.
-            ("-1 02:03:04", -d1_2_3_4),
-            ("+1 02:03:04", d1_2_3_4),
-            // Single digits, leading zeros, outer padding, `trimAll` bytes.
-            ("1 2:3:4", d1_2_3_4),
-            ("001 02:03:04", d1_2_3_4),
-            (" 1 02:03:04 ", d1_2_3_4),
-            ("\u{b}1 02:03:04", d1_2_3_4),
-            ("100 00:00:00", 100 * DAY),
-            // Without a day, hours lead and take any width or value.
-            ("02:03:04", h2_3_4),
-            ("-02:03:04", -h2_3_4),
-            ("002:03:04", h2_3_4),
-            ("100:00:00", 100 * HOUR),
-            ("24:00:00", 24 * HOUR),
-            // Fractions truncate to six digits; an explicit zero is fine.
-            ("1 02:03:04.5", d1_2_3_4 + 500_000),
-            ("1 02:03:04.1234567", d1_2_3_4 + 123_456),
-            ("1 02:03:04.123456789", d1_2_3_4 + 123_456),
-            ("1 02:03:04.0", d1_2_3_4),
-            ("1 23:59:59", DAY + 23 * HOUR + 59 * MINUTE + 59 * SECOND),
-            // The rendering Spark prints, read back; case and spacing free.
-            ("INTERVAL '1 02:03:04' DAY TO SECOND", d1_2_3_4),
-            ("interval  '1 02:03:04'  day to second", d1_2_3_4),
-        ] {
-            assert_eq!(micros(input), Some(expected), "{input:?}");
-        }
-        for (input, expected) in [
-            ("1-2", 14),
-            ("-1-2", -14),
-            ("+1-2", 14),
-            ("1-11", 23),
-            ("INTERVAL '1-2' YEAR TO MONTH", 14),
-            // The two written signs multiply.
-            ("INTERVAL -'-1-2' YEAR TO MONTH", 14),
-            ("INTERVAL -'1-2' YEAR TO MONTH", -14),
-            ("INTERVAL +'1-2' YEAR TO MONTH", 14),
-        ] {
-            assert_eq!(months(input), Some(expected), "{input:?}");
-        }
-        // Refused: bytes and shapes the feature file cannot carry, and the
-        // rendering rules. The field-range and spacing refusals run there
-        // instead, on both engines.
-        for input in [
-            "1 002:03:04", // non-leading fields take one or two digits
-            "1 02:003:04",
-            "1 02:03:004",
-            "1 +2:03:04",       // a sign is not a digit
-            "\u{a0}1 02:03:04", // NBSP is content, not padding
-            "1",
-            "1 -02:03:04",
-            "1 02:03:.5",
-            "1 02:03:04.x",
-            "1 - 2",
-            "INTERVAL '1 02:03:04'",      // a rendering needs its qualifier
-            "'1 02:03:04' DAY TO SECOND", // and the keyword
-            "INTERVAL '1 02:03:04' DAY TO FORTNIGHT",
-            "INTERVAL'1 02:03:04' DAY TO SECOND", // and its space
-            "INTERVAL '1-2' to",
-            "INTERVAL '1-2' DAY TO SECOND", // the family has to fit the shape
-            "INTERVAL '02:03:04' YEAR TO MONTH",
-            "INTERVAL '1-2' YEAR TO SECOND", // one family per pair
-            "INTERVAL '1-2' WEEK",
-            "5 seconds", // the multi-unit forms stay with their own scanner
-        ] {
-            assert_eq!(
-                parse_ansi_interval_string_fast(input, false),
-                None,
-                "{input:?}"
-            );
-        }
+        let one_day_two_three_four = DAY + 2 * HOUR + 3 * MINUTE + 4 * SECOND;
+        assert_eq!(dts("1 02:03:04"), Some(one_day_two_three_four));
+        assert_eq!(
+            dts("\u{b}1 02:03:04\u{0}"),
+            Some(one_day_two_three_four),
+            "trimAll strips every byte up to the space"
+        );
+        assert_eq!(
+            dts("1 02:03:04.1234567"),
+            Some(one_day_two_three_four + 123_456)
+        );
+        assert_eq!(dts("1 02:03:04.x"), None);
+        assert_eq!(dts("1 24:00:00"), None, "with a day, hours are 0-23");
+        assert_eq!(dts("1 +2:03:04"), None, "a sign is not a digit");
+        assert_eq!(dts("1\t02:03:04"), None, "a tab does not separate");
+        assert_eq!(
+            dts("\u{a0}1 02:03:04"),
+            None,
+            "NBSP is content, not padding"
+        );
+        assert_eq!(hts("02:03:04"), Some(2 * HOUR + 3 * MINUTE + 4 * SECOND));
+        assert_eq!(hts("100:00:00"), Some(100 * HOUR));
+        assert_eq!(hts("24:00:00"), Some(24 * HOUR));
+        assert_eq!(micros("5", Dt::Day, Dt::Day), Some(5 * DAY));
+        assert_eq!(micros("-5", Dt::Day, Dt::Day), Some(-5 * DAY));
+        assert_eq!(micros("1 2", Dt::Day, Dt::Hour), Some(DAY + 2 * HOUR));
+        assert_eq!(
+            micros("1 2:3", Dt::Day, Dt::Minute),
+            Some(DAY + 2 * HOUR + 3 * MINUTE)
+        );
+        assert_eq!(micros("99", Dt::Hour, Dt::Hour), Some(99 * HOUR));
+        assert_eq!(
+            micros("2:3", Dt::Hour, Dt::Minute),
+            Some(2 * HOUR + 3 * MINUTE)
+        );
+        assert_eq!(micros("99", Dt::Minute, Dt::Minute), Some(99 * MINUTE));
+        assert_eq!(
+            micros("2:3", Dt::Minute, Dt::Second),
+            Some(2 * MINUTE + 3 * SECOND),
+            "the same shape reads per target"
+        );
+        assert_eq!(
+            micros("3:4.5", Dt::Minute, Dt::Second),
+            Some(3 * MINUTE + 4 * SECOND + 500_000)
+        );
+        assert_eq!(
+            micros("4.5", Dt::Second, Dt::Second),
+            Some(4 * SECOND + 500_000)
+        );
+        assert_eq!(
+            micros("4294967296", Dt::Second, Dt::Second),
+            Some(4_294_967_296_000_000)
+        );
+        assert_eq!(ym("1-2"), Some(14));
+        assert_eq!(ym("1 - 2"), None, "no spaces around the dash");
+        assert_eq!(months("5", Ym::Year, Ym::Year), Some(60));
+        assert_eq!(months("-5", Ym::Month, Ym::Month), Some(-5));
+        assert_eq!(months("1-2", Ym::Year, Ym::Year), None);
+        assert_eq!(
+            dts("INTERVAL '1 02:03:04' DAY TO SECOND"),
+            Some(one_day_two_three_four)
+        );
+        assert_eq!(
+            dts("interval  '1 02:03:04'  day to second"),
+            Some(one_day_two_three_four),
+            "case and spacing are free"
+        );
+        assert_eq!(
+            dts("INTERVAL '02:03:04' HOUR TO SECOND"),
+            None,
+            "another qualifier is another type"
+        );
+        assert_eq!(hts("INTERVAL '1 02:03:04' DAY TO SECOND"), None);
+        // `'2:3'` fits both targets: the spelled qualifier decides, not the shape.
+        assert_eq!(
+            micros("INTERVAL '2:3' MINUTE TO SECOND", Dt::Hour, Dt::Minute),
+            None
+        );
+        assert_eq!(months("INTERVAL '5' MONTH", Ym::Year, Ym::Year), None);
+        assert_eq!(
+            micros("INTERVAL '5' DAY", Dt::Day, Dt::Day),
+            Some(5 * DAY),
+            "single-field renderings read too"
+        );
+        assert_eq!(
+            micros("INTERVAL -'5' DAY", Dt::Day, Dt::Day),
+            Some(-5 * DAY)
+        );
+        assert_eq!(micros("INTERVAL +'5' DAY", Dt::Day, Dt::Day), Some(5 * DAY));
+        assert_eq!(ym("INTERVAL '1-2' YEAR TO MONTH"), Some(14));
+        assert_eq!(
+            ym("INTERVAL -'-1-2' YEAR TO MONTH"),
+            Some(14),
+            "the two written signs multiply"
+        );
+        assert_eq!(ym("INTERVAL -'1-2' YEAR TO MONTH"), Some(-14));
+        assert_eq!(
+            months("INTERVAL '1-2' YEAR TO MONTH", Ym::Year, Ym::Year),
+            None
+        );
+        assert_eq!(
+            dts("INTERVAL '1 02:03:04'"),
+            None,
+            "a rendering without its qualifier is not one"
+        );
+        assert_eq!(
+            dts("'1 02:03:04' DAY TO SECOND"),
+            None,
+            "nor one without the keyword"
+        );
+        assert_eq!(dts("INTERVAL '1 02:03:04' DAY TO FORTNIGHT"), None);
+        assert_eq!(
+            dts("INTERVAL'1 02:03:04' DAY TO SECOND"),
+            None,
+            "the keyword does not glue to the value"
+        );
+        assert_eq!(ym("INTERVAL '1-2' to"), None);
+        assert_eq!(
+            ym("INTERVAL '1-2' YEAR TO SECOND"),
+            None,
+            "a qualifier pair stays within one family"
+        );
+        assert_eq!(ym("INTERVAL '1-2' WEEK"), None);
+        assert_eq!(
+            dts("INTERVAL '1  2:3:4' DAY TO SECOND"),
+            None,
+            "the value inside keeps its own rules"
+        );
+        // The minima are reachable only through the written sign.
+        assert_eq!(dts("-106751991 04:00:54.775808"), Some(i64::MIN));
+        assert_eq!(dts("106751991 04:00:54.775808"), None);
+        assert_eq!(ym("-178956970-8"), Some(i32::MIN));
+        assert_eq!(ym("178956970-8"), None);
+        assert_eq!(
+            micros("-9223372036854.775808", Dt::Second, Dt::Second),
+            Some(i64::MIN)
+        );
+        assert_eq!(
+            parse_year_month_interval_cast_string("1-2", true, Ym::Year, Ym::Month).ok(),
+            Some(IntervalValue::YearMonth { months: -14 })
+        );
+        assert!(
+            parse_year_month_interval_cast_string("178956970-8", true, Ym::Year, Ym::Month)
+                .is_err()
+        );
     }
 
-    /// Signs in the multi-unit form, taken from JVM Spark's `stringToInterval`.
+    /// The literal and the calendar reader stay multi-unit only.
     #[test]
-    fn test_ansi_forms_are_not_multi_unit() {
-        // The two scanners must not overlap: an ANSI string is not a sequence
-        // of value-unit pairs, and a multi-unit string has no colon or dash to
-        // mistake for one.
+    fn test_ansi_shapes_are_not_multi_unit() {
         for s in ["1 02:03:04", "02:03:04", "1-2", "-1 02:03:04"] {
             assert!(
                 parse_calendar_interval_string_fast(s).is_none(),
                 "{s:?} is ANSI, not multi-unit"
             );
-            assert!(
-                parse_ansi_interval_string_fast(s, false).is_some(),
-                "{s:?} should be scanned as ANSI"
-            );
-        }
-        for s in ["5 seconds", "1 day 2 hour", "interval 5 minutes"] {
-            assert!(
-                parse_ansi_interval_string_fast(s, false).is_none(),
-                "{s:?} is multi-unit, not ANSI"
-            );
+            assert!(parse_unqualified_interval_string(s, false).is_err());
         }
     }
 
     #[test]
     fn test_parse_interval() -> SqlResult<()> {
+        use spec::{DayTimeIntervalField as Dt, YearMonthIntervalField as Ym};
         let parse = parse_unqualified_interval_string;
-        // The cast language is wider: it also reads the ANSI shapes, which the
-        // unqualified literal refuses the way Spark's `stringToInterval` does.
-        let cast = parse_interval_cast_string;
+        let cast_ym = |s: &str, negated| {
+            parse_year_month_interval_cast_string(s, negated, Ym::Year, Ym::Month)
+        };
+        let cast_dts =
+            |s: &str, negated| parse_day_time_interval_cast_string(s, negated, Dt::Day, Dt::Second);
 
         assert!(parse("178956970 year 7 month", false).is_ok());
         assert!(parse("178956970 year 7 month", true).is_ok());
@@ -1199,28 +1202,23 @@ mod tests {
         assert!(parse("-178956970 year -9 month", false).is_err());
         assert!(parse("-178956970 year -9 month", true).is_err());
 
-        // The ANSI shapes are the cast language only: `SELECT INTERVAL
-        // '1 02:03:04'` is an error in Spark, `CAST` to a qualified type reads
-        // it.
+        // The ANSI shapes are the cast language only, as in Spark.
         assert!(parse("178956970-7", false).is_err());
         assert!(parse("1 02:03:04", false).is_err());
-        assert!(cast("178956970-7", false).is_ok());
-        assert!(cast("178956970-7", true).is_ok());
-        assert!(cast("178956970-8", false).is_err());
-        // The smallest year-month interval Spark prints. It is reachable only
-        // through its own written sign: the sign inside the string narrows
-        // with the value, and the caller's negation applies to the finished
-        // value, so negating the positive magnitude is an error, not the
-        // minimum.
+        assert!(cast_ym("178956970-7", false).is_ok());
+        assert!(cast_ym("178956970-7", true).is_ok());
+        assert!(cast_ym("178956970-8", false).is_err());
+        // The smallest year-month interval Spark prints, reachable only
+        // through its own written sign.
         assert_eq!(
-            cast("-178956970-8", false)?,
+            cast_ym("-178956970-8", false)?,
             IntervalValue::YearMonth { months: i32::MIN }
         );
-        assert!(cast("178956970-8", true).is_err());
-        assert!(cast("-178956970-9", false).is_err());
+        assert!(cast_ym("178956970-8", true).is_err());
+        assert!(cast_ym("-178956970-9", false).is_err());
 
-        assert_eq!(cast("-2-1", false)?, cast("2-1", true)?);
-        assert_eq!(cast("-2-1", false)?, parse("-2 year -1 month", false)?);
+        assert_eq!(cast_ym("-2-1", false)?, cast_ym("2-1", true)?);
+        assert_eq!(cast_ym("-2-1", false)?, parse("-2 year -1 month", false)?);
 
         assert!(parse("106751991 day 14454775807 microsecond", false).is_ok());
         assert!(parse("106751991 day 14454775807 microsecond", true).is_ok());
@@ -1232,14 +1230,13 @@ mod tests {
         assert!(parse("-106751991 day -14454775809 microsecond", true).is_err());
 
         assert_eq!(
-            cast("-106751991 04:00:54.775808", false)?,
+            cast_dts("-106751991 04:00:54.775808", false)?,
             IntervalValue::Microsecond {
                 microseconds: i64::MIN
             }
         );
-        assert!(cast("106751991 04:00:54.775808", false).is_err());
-        assert!(cast("106751991 04:00:54.775807", false).is_ok());
-        // A single term reaches the same minimum through its own sign.
+        assert!(cast_dts("106751991 04:00:54.775808", false).is_err());
+        assert!(cast_dts("106751991 04:00:54.775807", false).is_ok());
         assert_eq!(
             parse("-9223372036854.775808 seconds", false)?,
             IntervalValue::Microsecond {
@@ -1250,11 +1247,11 @@ mod tests {
         assert!(parse("-9223372036854.775808 seconds", true).is_err());
 
         assert_eq!(
-            cast("-1 2:3:4.567890", false)?,
-            cast("1 2:3:4.567890", true)?
+            cast_dts("-1 2:3:4.567890", false)?,
+            cast_dts("1 2:3:4.567890", true)?
         );
         assert_eq!(
-            cast("-1 2:3:4.567890", false)?,
+            cast_dts("-1 2:3:4.567890", false)?,
             parse(
                 "-1 day -2 hour -3 minute -4 second -567 millisecond -890 microsecond",
                 false
@@ -1373,10 +1370,10 @@ mod tests {
     fn test_qualified_literal_signs_combine() -> SqlResult<()> {
         const DAY: i64 = 86_400_000_000;
         let months = |s: &str, negated: bool| {
-            parse_interval_year_month_string(s, negated, &INTERVAL_YEAR_TO_MONTH_REGEX)
+            parse_interval_year_month_string(s, negated, false, &INTERVAL_YEAR_TO_MONTH_REGEX)
         };
         let micros = |s: &str, negated: bool| {
-            parse_interval_day_time_string(s, negated, &INTERVAL_DAY_TO_SECOND_REGEX)
+            parse_interval_day_time_string(s, negated, false, &INTERVAL_DAY_TO_SECOND_REGEX)
         };
 
         for (input, negated, expected) in [

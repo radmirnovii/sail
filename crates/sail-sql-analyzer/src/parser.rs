@@ -1,6 +1,7 @@
 use chumsky::Parser;
 use chumsky::input::Input;
 use chumsky::span::SimpleSpan;
+use sail_common::spec;
 use sail_sql_parser::ast::data_type::DataType;
 use sail_sql_parser::ast::expression::Expr;
 use sail_sql_parser::ast::identifier::{ObjectName, QualifiedWildcard};
@@ -20,7 +21,8 @@ use crate::literal::datetime::{
     create_timestamp_parser,
 };
 use crate::literal::interval::{
-    IntervalValue, parse_interval_cast_string, parse_unqualified_interval_string,
+    IntervalValue, parse_day_time_interval_cast_string, parse_unqualified_interval_string,
+    parse_year_month_interval_cast_string,
 };
 
 fn map_parser_input<'a, C>(
@@ -111,10 +113,24 @@ pub fn parse_interval(s: &str) -> SqlResult<IntervalValue> {
     parse_unqualified_interval_string(s, false)
 }
 
-/// Reads the wider language of a string cast to a qualified interval type,
-/// which takes the ANSI shapes as well as the multi-unit terms.
-pub fn parse_interval_cast(s: &str) -> SqlResult<IntervalValue> {
-    parse_interval_cast_string(s, false)
+/// Reads a string cast to a year-month interval type: exactly the shape of
+/// the target qualifier, as Spark's `castStringToYMInterval` reads it.
+pub fn parse_year_month_interval_cast(
+    s: &str,
+    start: spec::YearMonthIntervalField,
+    end: spec::YearMonthIntervalField,
+) -> SqlResult<IntervalValue> {
+    parse_year_month_interval_cast_string(s, false, start, end)
+}
+
+/// Reads a string cast to a day-time interval type: exactly the shape of the
+/// target qualifier, as Spark's `castStringToDTInterval` reads it.
+pub fn parse_day_time_interval_cast(
+    s: &str,
+    start: spec::DayTimeIntervalField,
+    end: spec::DayTimeIntervalField,
+) -> SqlResult<IntervalValue> {
+    parse_day_time_interval_cast_string(s, false, start, end)
 }
 
 pub fn parse_date(s: &str) -> SqlResult<DateValue> {

@@ -67,6 +67,10 @@ impl PlanResolver<'_> {
             } => end_field.or(*start_field),
             _ => None,
         };
+        // The interval cast target's qualifier, taken off the spec type
+        // before Arrow erases it: the string reader accepts exactly its shape.
+        let year_month_fields = year_month_cast_fields(&cast_to_type)?;
+        let day_time_fields = day_time_cast_fields(&cast_to_type)?;
         let cast_to_type = self.resolve_data_type(&cast_to_type, state)?;
         let NamedExpr { expr, name, .. } =
             self.resolve_named_expression(expr, schema, state).await?;
@@ -175,12 +179,22 @@ impl PlanResolver<'_> {
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Interval(IntervalUnit::YearMonth),
                 is_try,
-            ) => ScalarUDF::new_from_impl(SparkYearMonthInterval::new(is_try)).call(vec![expr]),
+            ) => {
+                let (start, end) = year_month_fields
+                    .ok_or_else(|| PlanError::internal("year-month cast without spec fields"))?;
+                ScalarUDF::new_from_impl(SparkYearMonthInterval::new(is_try, start, end))
+                    .call(vec![expr])
+            }
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Duration(TimeUnit::Microsecond),
                 is_try,
-            ) => ScalarUDF::new_from_impl(SparkDayTimeInterval::new(is_try)).call(vec![expr]),
+            ) => {
+                let (start, end) = day_time_fields
+                    .ok_or_else(|| PlanError::internal("day-time cast without spec fields"))?;
+                ScalarUDF::new_from_impl(SparkDayTimeInterval::new(is_try, start, end))
+                    .call(vec![expr])
+            }
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Interval(IntervalUnit::MonthDayNano),
@@ -359,4 +373,71 @@ fn need_rename_cast(expr: &expr::Expr) -> bool {
         expr::Expr::TryCast(try_cast) => need_rename_cast(try_cast.expr.as_ref()),
         _ => true,
     }
+}
+
+/// The `(start, end)` pair of a year-month interval cast target; a bare
+/// `INTERVAL YEAR TO MONTH` means the full range, a single field means itself.
+fn year_month_cast_fields(
+    data_type: &spec::DataType,
+) -> PlanResult<Option<(spec::YearMonthIntervalField, spec::YearMonthIntervalField)>> {
+    let spec::DataType::Interval {
+        interval_unit: spec::IntervalUnit::YearMonth,
+        start_field,
+        end_field,
+    } = data_type
+    else {
+        return Ok(None);
+    };
+    let field = |f: spec::IntervalFieldType| match f {
+        spec::IntervalFieldType::Year => Ok(spec::YearMonthIntervalField::Year),
+        spec::IntervalFieldType::Month => Ok(spec::YearMonthIntervalField::Month),
+        other => Err(PlanError::invalid(format!(
+            "year-month interval field: {other:?}"
+        ))),
+    };
+    Ok(Some(match (start_field, end_field) {
+        (None, None) => (
+            spec::YearMonthIntervalField::Year,
+            spec::YearMonthIntervalField::Month,
+        ),
+        (Some(f), None) | (None, Some(f)) => {
+            let f = field(*f)?;
+            (f, f)
+        }
+        (Some(a), Some(b)) => (field(*a)?, field(*b)?),
+    }))
+}
+
+/// As [year_month_cast_fields], for the day-time family.
+fn day_time_cast_fields(
+    data_type: &spec::DataType,
+) -> PlanResult<Option<(spec::DayTimeIntervalField, spec::DayTimeIntervalField)>> {
+    let spec::DataType::Interval {
+        interval_unit: spec::IntervalUnit::DayTime,
+        start_field,
+        end_field,
+    } = data_type
+    else {
+        return Ok(None);
+    };
+    let field = |f: spec::IntervalFieldType| match f {
+        spec::IntervalFieldType::Day => Ok(spec::DayTimeIntervalField::Day),
+        spec::IntervalFieldType::Hour => Ok(spec::DayTimeIntervalField::Hour),
+        spec::IntervalFieldType::Minute => Ok(spec::DayTimeIntervalField::Minute),
+        spec::IntervalFieldType::Second => Ok(spec::DayTimeIntervalField::Second),
+        other => Err(PlanError::invalid(format!(
+            "day-time interval field: {other:?}"
+        ))),
+    };
+    Ok(Some(match (start_field, end_field) {
+        (None, None) => (
+            spec::DayTimeIntervalField::Day,
+            spec::DayTimeIntervalField::Second,
+        ),
+        (Some(f), None) | (None, Some(f)) => {
+            let f = field(*f)?;
+            (f, f)
+        }
+        (Some(a), Some(b)) => (field(*a)?, field(*b)?),
+    }))
 }
