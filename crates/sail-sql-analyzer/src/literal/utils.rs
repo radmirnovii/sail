@@ -57,6 +57,9 @@ where
             let value: T = parse_signed_value(*expr)?;
             Ok(-value)
         }
+        // Spark accepts a leading plus wherever it accepts a leading minus,
+        // e.g. `INTERVAL +'1-2' YEAR TO MONTH`.
+        Expr::UnaryOperator(UnaryOperator::Plus(_), expr) => parse_signed_value(*expr),
         Expr::Atom(AtomExpr::NumberLiteral(NumberLiteral {
             span: _,
             value,

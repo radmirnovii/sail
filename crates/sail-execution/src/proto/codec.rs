@@ -3085,6 +3085,20 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
                 let udf = SparkTimestamp::try_new(timezone.map(Arc::from), ansi_mode, is_try)?;
                 return Ok(Arc::new(ScalarUDF::from(udf)));
             }
+            UdfKind::SparkInterval(r#gen::SparkIntervalUdf { name, is_try }) => {
+                return match name.as_str() {
+                    "spark_year_month_interval" => Ok(Arc::new(ScalarUDF::from(
+                        SparkYearMonthInterval::new(is_try),
+                    ))),
+                    "spark_day_time_interval" => {
+                        Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(is_try))))
+                    }
+                    "spark_calendar_interval" => Ok(Arc::new(ScalarUDF::from(
+                        SparkCalendarInterval::new(is_try),
+                    ))),
+                    _ => plan_err!("unknown interval UDF: {name}"),
+                };
+            }
             UdfKind::SparkDate(r#gen::SparkDateUdf { is_try }) => {
                 return Ok(Arc::new(ScalarUDF::from(SparkDate::new(is_try))));
             }
@@ -3324,15 +3338,17 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
             "spark_encode" | "encode" => Ok(Arc::new(ScalarUDF::from(SparkEncode::new()))),
             "spark_elt" | "elt" => Ok(Arc::new(ScalarUDF::from(SparkElt::new()))),
             "spark_decode" | "decode" => Ok(Arc::new(ScalarUDF::from(SparkDecode::new()))),
-            "spark_year_month_interval" => {
-                Ok(Arc::new(ScalarUDF::from(SparkYearMonthInterval::new())))
+            "spark_year_month_interval" => Ok(Arc::new(ScalarUDF::from(
+                SparkYearMonthInterval::new(false),
+            ))),
+            "spark_day_time_interval" => {
+                Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new(false))))
             }
-            "spark_day_time_interval" => Ok(Arc::new(ScalarUDF::from(SparkDayTimeInterval::new()))),
             "spark_day_time_interval_to_calendar_interval" => Ok(Arc::new(ScalarUDF::from(
                 SparkDayTimeIntervalToCalendarInterval::new(),
             ))),
             "spark_calendar_interval" => {
-                Ok(Arc::new(ScalarUDF::from(SparkCalendarInterval::new())))
+                Ok(Arc::new(ScalarUDF::from(SparkCalendarInterval::new(false))))
             }
             "spark_date_format" | "date_format" => {
                 // Use UTC as default timezone when creating from name only
@@ -3424,13 +3440,11 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
             || node_inner.is::<SparkBitGet>()
             || node_inner.is::<SparkBitwiseNot>()
             || node_inner.is::<SparkBRound>()
-            || node_inner.is::<SparkCalendarInterval>()
             || node_inner.is::<SparkConcat>()
             || node_inner.is::<SparkConv>()
             || node_inner.is::<SparkCrc32>()
             || node_inner.is::<SparkDatePart>()
             || node_inner.is::<SparkDateTrunc>()
-            || node_inner.is::<SparkDayTimeInterval>()
             || node_inner.is::<SparkDayTimeIntervalToCalendarInterval>()
             || node_inner.is::<SparkDecode>()
             || node_inner.is::<SparkElt>()
@@ -3492,7 +3506,6 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
             || node_inner.is::<SparkVersion>()
             || node_inner.is::<SparkWidthBucket>()
             || node_inner.is::<SparkXxhash64>()
-            || node_inner.is::<SparkYearMonthInterval>()
             || node_inner.is::<SparkToJson>()
             || node_inner.is::<TryUrlDecode>()
             || node_inner.is::<UrlDecode>()
@@ -3616,6 +3629,21 @@ impl PhysicalExtensionCodec for RemoteExecutionCodec {
                 timezone,
                 is_try,
                 ansi_mode,
+            })
+        } else if let Some(func) = node.inner().downcast_ref::<SparkYearMonthInterval>() {
+            UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
+                name: "spark_year_month_interval".to_string(),
+                is_try: func.is_try(),
+            })
+        } else if let Some(func) = node.inner().downcast_ref::<SparkDayTimeInterval>() {
+            UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
+                name: "spark_day_time_interval".to_string(),
+                is_try: func.is_try(),
+            })
+        } else if let Some(func) = node.inner().downcast_ref::<SparkCalendarInterval>() {
+            UdfKind::SparkInterval(r#gen::SparkIntervalUdf {
+                name: "spark_calendar_interval".to_string(),
+                is_try: func.is_try(),
             })
         } else if let Some(func) = node.inner().downcast_ref::<SparkDate>() {
             let is_try = func.is_try();
@@ -7424,6 +7452,23 @@ mod tests {
         let decoded = round_trip_udf(ScalarUDF::from(SparkDate::new(true)))?;
 
         let decoded = downcast_udf::<SparkDate>(&decoded, "SparkDate")?;
+        assert!(decoded.is_try());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_round_trip_spark_interval_preserves_options() -> Result<()> {
+        let decoded = round_trip_udf(ScalarUDF::from(SparkYearMonthInterval::new(true)))?;
+        let decoded = downcast_udf::<SparkYearMonthInterval>(&decoded, "SparkYearMonthInterval")?;
+        assert!(decoded.is_try());
+
+        let decoded = round_trip_udf(ScalarUDF::from(SparkDayTimeInterval::new(true)))?;
+        let decoded = downcast_udf::<SparkDayTimeInterval>(&decoded, "SparkDayTimeInterval")?;
+        assert!(decoded.is_try());
+
+        let decoded = round_trip_udf(ScalarUDF::from(SparkCalendarInterval::new(true)))?;
+        let decoded = downcast_udf::<SparkCalendarInterval>(&decoded, "SparkCalendarInterval")?;
         assert!(decoded.is_try());
 
         Ok(())

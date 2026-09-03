@@ -232,6 +232,7 @@ message ExtendedScalarUdf {
     SparkMapFromEntriesUdf spark_map_from_entries = 38;
     StrToMapUdf str_to_map = 39;
     SparkSequenceUdf spark_sequence = 40;
+    SparkIntervalUdf spark_interval = 41;
   }
 }
 
@@ -348,6 +349,13 @@ message SparkTimestampUdf {
   optional string timezone = 1;
   bool is_try = 2;
   bool ansi_mode = 3;
+}
+
+// The three string-to-interval casts share a message: they differ only by
+// which UDF the name selects, and `TRY_CAST` yields NULL where `CAST` raises.
+message SparkIntervalUdf {
+  string name = 1;
+  bool is_try = 2;
 }
 
 message SparkDateUdf {

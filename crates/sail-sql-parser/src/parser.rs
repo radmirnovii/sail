@@ -5,7 +5,7 @@ use chumsky::prelude::{Recursive, end};
 use chumsky::{IterParser, Parser};
 
 use crate::ast::data_type::DataType;
-use crate::ast::expression::{Expr, IntervalLiteral};
+use crate::ast::expression::Expr;
 use crate::ast::identifier::{Ident, ObjectName, QualifiedWildcard};
 use crate::ast::operator::Semicolon;
 use crate::ast::query::{NamedExpr, Query, TableWithJoins};
@@ -131,18 +131,6 @@ where
     NamedExpr::parser((expression(options), ident), options)
 }
 
-fn interval_literal<'a, I, E>(
-    options: &'a ParserOptions,
-) -> impl Parser<'a, I, IntervalLiteral, E> + Clone
-where
-    I: Input<'a, Token = Token<'a>> + ValueInput<'a>,
-    I::Span: Into<TokenSpan> + Clone,
-    E: ParserExtra<'a, I> + 'a,
-    E::Error: LabelError<'a, I, TokenLabel>,
-{
-    IntervalLiteral::parser(expression(options), options)
-}
-
 pub fn create_parser<'a, I, E>(
     options: &'a ParserOptions,
 ) -> impl Parser<'a, I, Vec<Statement>, E> + Clone
@@ -193,8 +181,3 @@ define_sub_parser!(
 );
 define_sub_parser!(create_expression_parser, Expr, expression);
 define_sub_parser!(create_named_expression_parser, NamedExpr, named_expression);
-define_sub_parser!(
-    create_interval_literal_parser,
-    IntervalLiteral,
-    interval_literal,
-);

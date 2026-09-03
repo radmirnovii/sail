@@ -2,16 +2,15 @@ use chumsky::Parser;
 use chumsky::input::Input;
 use chumsky::span::SimpleSpan;
 use sail_sql_parser::ast::data_type::DataType;
-use sail_sql_parser::ast::expression::{Expr, IntervalLiteral};
+use sail_sql_parser::ast::expression::Expr;
 use sail_sql_parser::ast::identifier::{ObjectName, QualifiedWildcard};
 use sail_sql_parser::ast::query::NamedExpr;
 use sail_sql_parser::ast::statement::Statement;
 use sail_sql_parser::lexer::create_lexer;
 use sail_sql_parser::options::ParserOptions;
 use sail_sql_parser::parser::{
-    create_data_type_parser, create_expression_parser, create_interval_literal_parser,
-    create_named_expression_parser, create_object_name_parser, create_parser,
-    create_qualified_wildcard_parser,
+    create_data_type_parser, create_expression_parser, create_named_expression_parser,
+    create_object_name_parser, create_parser, create_qualified_wildcard_parser,
 };
 use sail_sql_parser::token::{Punctuation, Token};
 
@@ -20,7 +19,9 @@ use crate::literal::datetime::{
     DateValue, TimeValue, TimestampValue, create_date_parser, create_time_parser,
     create_timestamp_parser,
 };
-use crate::literal::interval::{IntervalValue, parse_unqualified_interval_string};
+use crate::literal::interval::{
+    IntervalValue, parse_interval_cast_string, parse_unqualified_interval_string,
+};
 
 fn map_parser_input<'a, C>(
     (t, s): &'a (Token<'a>, SimpleSpan<usize, C>),
@@ -106,12 +107,14 @@ pub fn parse_named_expression(s: &str) -> SqlResult<NamedExpr> {
     parse!(s, create_named_expression_parser)
 }
 
-pub(crate) fn parse_interval_literal(s: &str) -> SqlResult<IntervalLiteral> {
-    parse!(s, create_interval_literal_parser)
-}
-
 pub fn parse_interval(s: &str) -> SqlResult<IntervalValue> {
     parse_unqualified_interval_string(s, false)
+}
+
+/// Reads the wider language of a string cast to a qualified interval type,
+/// which takes the ANSI shapes as well as the multi-unit terms.
+pub fn parse_interval_cast(s: &str) -> SqlResult<IntervalValue> {
+    parse_interval_cast_string(s, false)
 }
 
 pub fn parse_date(s: &str) -> SqlResult<DateValue> {

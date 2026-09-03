@@ -174,18 +174,22 @@ impl PlanResolver<'_> {
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Interval(IntervalUnit::YearMonth),
-                _,
-            ) => ScalarUDF::new_from_impl(SparkYearMonthInterval::new()).call(vec![expr]),
+                is_try,
+            ) => ScalarUDF::new_from_impl(SparkYearMonthInterval::new(is_try)).call(vec![expr]),
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Duration(TimeUnit::Microsecond),
-                _,
-            ) => ScalarUDF::new_from_impl(SparkDayTimeInterval::new()).call(vec![expr]),
+                is_try,
+            ) => ScalarUDF::new_from_impl(SparkDayTimeInterval::new(is_try)).call(vec![expr]),
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Interval(IntervalUnit::MonthDayNano),
                 _,
-            ) => ScalarUDF::new_from_impl(SparkCalendarInterval::new()).call(vec![expr]),
+            ) => {
+                // Spark reads a calendar interval with `safeStringToInterval`,
+                // so even a plain cast yields NULL rather than raising.
+                ScalarUDF::new_from_impl(SparkCalendarInterval::new(true)).call(vec![expr])
+            }
             (
                 DataType::Utf8 | DataType::LargeUtf8 | DataType::Utf8View,
                 DataType::Date32,
